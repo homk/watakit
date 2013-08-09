@@ -1,6 +1,10 @@
 import numpy as np
 from sklearn import svm as sklearn_svm
 
+"""
+TODO: multiple kernel SVM, ...
+"""
+
 
 class SVM(object):
     """
@@ -68,7 +72,7 @@ class SVM(object):
         self.num_sample, self.dim_input = self.X.shape        
 
         #label error check
-        self.label_Y = list(set(Y))
+        self.label_Y = sorted(list(set(Y)))
         if len(self.label_Y) > 2:
             raise ValueError('SVM is binary classifier. \
                               Label sequence Y must not have more than two labels.')
@@ -114,7 +118,12 @@ class SVM(object):
         class 0 (+1) comes ahead followed by class 1 (-1).
         See also support_vectors_, dual_coef_.
         """
-        return self._clf.support_
+        return sorted(self._clf.support_)
+
+
+    @property
+    def n_support_(self):
+        return len(self.support_)
 
 
     @property
@@ -124,7 +133,7 @@ class SVM(object):
         
         array of support vectors.
         Column index is orderd in accordance with support_ attribute.       
-        """
+s        """
         return self._clf.support_vectors_
 
 
@@ -224,3 +233,162 @@ class SVM(object):
        return self._support_penalty_
 
        
+
+
+class SVC_base(object):
+    """
+    Base Class for Support Vector Classifier. (Multiclass SVM)
+    
+    1. 
+    """
+    def __init__(self, C=1.0, kernel='rbf', cache_size=1000, class_weight=None, coef0=0.0, probability=False, max_iter=-1,
+                 multiclass_method = '1v1'):
+        """
+        Parameters
+        ----------
+
+        multiclass_method : '1v1', '1vR', 'ECOC'
+        """
+
+
+    def decision_function(self, X):
+        """
+        Decision functions of SVMs.
+
+        Parameters
+        ----------
+        X : shape = (num_inputs, dim_input)
+
+        Returns
+        ------
+        decision_function_values : shape = (num_inputs, num_svms)        
+        """
+        return np.array([svm.decision_function(X) for svm in self.svm_list]).T
+
+
+    def _clear_cache(self):
+        cache_attr = ['_support_', '_support_alphas_']
+        for attr in cache_attr:
+            if hasattr(self, attr):
+                delattr(self, attr)
+
+
+    #Properties of SVC
+    #    'list' prefix indicates a list of properties w.r.t svm_list.
+    @property
+    def support_list(self):
+        return [svm.support_ for svm in self.svm_list]
+
+
+    @property
+    def support_(self):
+        """
+        A list of support vectors.
+        In the multiclass setting, there are multiple svms and each svm has a set of support vectors.
+        This property returns the UNION of the sets of support vectors.
+
+        Returns
+        ------
+        Ind : list of indices of support vectors.
+        """
+        try: 
+            self._support_
+        except AttributeError:
+            tmp = []
+            for svm in self.svm_list:
+                tmp.extend(svm.support_)
+            self._support_ = sorted(list(set(tmp)))
+
+        return self._support_
+
+
+    @property
+    def n_support_list(self):
+        return [svm.n_support_ for svm in self.svm_list]
+
+
+    @property
+    def n_support_(self):
+        return len(self.support_)
+
+
+    @property
+    def support_vectors_(self):
+        """
+        Returns
+        ------
+        Ind : list of support vectors.
+        """
+        return np.array([self.X[i] for i in self.support_])
+
+
+    @property
+    def support_alpha_list(self):
+        """
+        Returns
+        -------
+        Alpha : ndarray, shape=(num_svm, n_support_)
+        """
+        try: 
+            self._support_alphas_
+        except AttributeError:
+            self._support_alpha_list = np.empty((len(self.svm_list), self.n_support_))
+            for i, svm in enumerate(self.svm_list):
+                for k, j in enumerate(svm.support_):
+                    self._support_alpha_list[i,self.support_.index(j)] = svm.support_alpha_[k]
+        
+        return self._support_alpha_list
+
+
+
+
+        
+
+class SVC_1vR(SVC_base):
+    """
+    Multiclass SVM with 1 vs Rest strategy.
+    
+    1. 
+    """
+    def fit(self, X, Y):
+        """
+        
+        """
+        self.X = np.array(X)
+        self.Y = Y
+        self.num_sample, self.dim_input = self.X.shape
+
+        #Check number of classes
+        self.label_Y = sorted(list(set(Y)))
+        if len(self.label_Y) < 1:
+            print('Caution: label sequence Y does not contain two labels..')
+
+        #Create a list of svms.
+        self.svm_list = []
+        for i, y0 in enumerate(self.label_Y):
+            Yi = [0 if y == y0 else 1 for y in self.Y]
+            Xi = self.X
+            svm = SVM()
+            svm.fit(X, Yi)
+            self.svm_list.append(svm)
+
+        #clear cache
+        self._clear_cache()
+
+
+    def predict(self, X):
+        """
+        Decision function by 1 vs Rest strategy.
+        In this strategy, the class label with the maximum svm score is used.
+        """
+        tmp_predict = np.argmax(self.decision_function(X), 1)
+        return [self.label_Y[i] for i in tmp_predict]
+
+
+
+        
+        
+
+
+        
+        

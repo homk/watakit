@@ -13,4 +13,12 @@ def test_svm():
     
     
 
+def test_svc():
+iris = load_iris()
+X = iris.data
+Y = iris.target
+svc = SVC()
+svc.fit(X, Y)
+    
+    
 
