@@ -133,7 +133,7 @@ class SVM(object):
         
         array of support vectors.
         Column index is orderd in accordance with support_ attribute.       
-s        """
+        """
         return self._clf.support_vectors_
 
 
@@ -232,23 +232,95 @@ s        """
            self._support_penalty_ = 1 - self.support_signs_ * self.decision_function(self.support_vectors_)  #must be non-negative for support vectors.
        return self._support_penalty_
 
-       
 
 
+class NuSVM(SVM):
+    """
+    NuSVM 
+
+    NuSVM is a binary classifier.
+
+
+    """
+    def __init__(self, nu=0.5, cache_size=1000, coef0=0.0,   #no C, class_weights
+                 degree=3, gamma=0.0, kernel='rbf', max_iter=-1, probability=False, 
+                 shrinking=True, tol=0.001, verbose=False):
+        """
+        Parameters
+        ----------
+        nu : float
+            fraction of training errors <= nu <= fraction of support vectors
+            
+            Small nu yields small number of support vectors at the cost of small margin.
+            Large nu yields large number of support vectors and large margin.
+
+
+        See 'New support vector algorithms' by Scholkopf et al.
+        """
+        
+        #set parameters to a dictionary
+        kwargs = {
+                 'nu' : nu,
+                 'cache_size' : cache_size,
+                 #'class_weight' : class_weight,
+                 'coef0' : coef0,
+                 'degree' : degree,
+                 'gamma' : gamma,
+                 'kernel' : kernel,
+                 'max_iter' : max_iter,
+                 'probability' : probability,
+                 'shrinking' : shrinking,
+                 'tol' : tol,
+                 'verbose' : verbose,
+                  }
+
+        for key, val in kwargs.items():
+            setattr(self, key, val)
+
+        #construct SVC
+        self._clf = sklearn_svm.NuSVC(**kwargs)
+    
+
+
+# SVC
+# ---
 class SVC_base(object):
     """
     Base Class for Support Vector Classifier. (Multiclass SVM)
     
     1. 
     """
-    def __init__(self, C=1.0, kernel='rbf', cache_size=1000, class_weight=None, coef0=0.0, probability=False, max_iter=-1,
-                 multiclass_method = '1v1'):
+    def __init__(self, C=1.0, nu=0.5, kernel='rbf', cache_size=1000, class_weight=None, 
+                 coef0=0.0, probability=False, max_iter=-1,
+                 multiclass_method = '1v1', svm_type = 'SVM'):
         """
         Parameters
         ----------
 
         multiclass_method : '1v1', '1vR', 'ECOC'
+        svm_type: 'SVM', 'NuSVM'
         """
+        #set parameters to a dictionary
+        kwargs = {
+                 'C' : C,
+                 'nu' : nu,
+                 'cache_size' : cache_size,
+                 'class_weight' : class_weight,
+                 'coef0' : coef0,
+                 #'degree' : degree,
+                 #'gamma' : gamma,
+                 'kernel' : kernel,
+                 'max_iter' : max_iter,
+                 'probability' : probability,
+                 #'shrinking' : shrinking,
+                 #'tol' : tol,
+                 #'verbose' : verbose,
+                 'multiclass_method': multiclass_method,
+                 'svm_type' : svm_type,
+                  }
+
+        for key, val in kwargs.items():
+            setattr(self, key, val)
 
 
     def decision_function(self, X):
@@ -368,7 +440,11 @@ class SVC_1vR(SVC_base):
         for i, y0 in enumerate(self.label_Y):
             Yi = [0 if y == y0 else 1 for y in self.Y]
             Xi = self.X
-            svm = SVM()
+            if self.svm_type == 'SVM':
+                svm = SVM(self.C)
+            elif self.svm_type == 'NuSVM':
+                svm = NuSVM(self.nu)
+
             svm.fit(X, Yi)
             self.svm_list.append(svm)
 
